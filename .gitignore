@@ -1,0 +1,47 @@
+# Archivos de configuración con información sensible
+controller-info.xml
+*.properties
+*.key
+*.pem
+*.crt
+*.jks
+*.p12
+
+# Logs
+*.log
+logs/
+*/logs/
+
+# Archivos temporales
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Archivos de IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Archivos de backup
+*.bak
+*.backup
+*~
+
+# Archivos comprimidos (excepto los necesarios)
+*.zip
+*.tar.gz
+*.tar
+*.gz
+
+# Mantener ejemplos
+!*.example
+!*.sample

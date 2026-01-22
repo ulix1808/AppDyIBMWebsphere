@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+    Archivo de ejemplo de configuración para AppDynamics Java Agent
+    Copie este archivo a conf/controller-info.xml y ajuste los valores según su entorno
+-->
+<controller-info>
+    <!-- ============================================ -->
+    <!-- Configuración del Controller                 -->
+    <!-- ============================================ -->
+    
+    <!-- Hostname o IP del Controller de AppDynamics -->
+    <controller-host>controller.example.com</controller-host>
+    
+    <!-- Puerto del Controller (8090 para HTTP, 8181 para HTTPS) -->
+    <controller-port>8090</controller-port>
+    
+    <!-- Habilitar SSL/TLS (true/false) -->
+    <controller-ssl-enabled>false</controller-ssl-enabled>
+    
+    <!-- Verificar certificado SSL (true/false) -->
+    <controller-ssl-verify-cert>true</controller-ssl-verify-cert>
+    
+    <!-- ============================================ -->
+    <!-- Configuración de la Aplicación              -->
+    <!-- ============================================ -->
+    
+    <!-- Nombre de la aplicación en AppDynamics -->
+    <application-name>MiAplicacion</application-name>
+    
+    <!-- Nombre del tier (grupo lógico de nodos) -->
+    <tier-name>WebSphere-Tier</tier-name>
+    
+    <!-- Nombre del nodo (identificador único del servidor) -->
+    <node-name>WebSphere-Node-1</node-name>
+    
+    <!-- ============================================ -->
+    <!-- Configuración de Cuenta                     -->
+    <!-- ============================================ -->
+    
+    <!-- Nombre de la cuenta en AppDynamics -->
+    <account-name>customer1</account-name>
+    
+    <!-- Access Key de la cuenta (obtener del Controller) -->
+    <account-access-key>tu-access-key-aqui</account-access-key>
+    
+    <!-- ============================================ -->
+    <!-- Configuración del Agente                    -->
+    <!-- ============================================ -->
+    
+    <!-- Directorio de instalación del agente -->
+    <agent-runtime-dir>/opt/appdynamics/java-agent</agent-runtime-dir>
+    
+    <!-- Habilitar Server Instrumentation Module (SIM) -->
+    <sim-enabled>true</sim-enabled>
+    
+    <!-- ============================================ -->
+    <!-- Configuración de Proxy (Opcional)          -->
+    <!-- ============================================ -->
+    
+    <!-- Host del proxy HTTP (dejar vacío si no se usa) -->
+    <http-proxy-host></http-proxy-host>
+    
+    <!-- Puerto del proxy HTTP -->
+    <http-proxy-port></http-proxy-port>
+    
+    <!-- Usuario del proxy (si requiere autenticación) -->
+    <http-proxy-username></http-proxy-username>
+    
+    <!-- Contraseña del proxy (si requiere autenticación) -->
+    <http-proxy-password></http-proxy-password>
+    
+    <!-- ============================================ -->
+    <!-- Configuración de Logging                    -->
+    <!-- ============================================ -->
+    
+    <!-- Directorio para logs del agente -->
+    <log-dir>/opt/appdynamics/java-agent/logs</log-dir>
+    
+    <!-- Nivel de logging: TRACE, DEBUG, INFO, WARN, ERROR -->
+    <log-level>INFO</log-level>
+    
+    <!-- ============================================ -->
+    <!-- Configuración Avanzada (Opcional)           -->
+    <!-- ============================================ -->
+    
+    <!-- Tamaño máximo del archivo de log (en MB) -->
+    <log-max-file-size>10</log-max-file-size>
+    
+    <!-- Número máximo de archivos de log a mantener -->
+    <log-max-files>10</log-max-files>
+    
+    <!-- Timeout de conexión al Controller (en segundos) -->
+    <controller-timeout>300</controller-timeout>
+    
+    <!-- Intervalo de heartbeat al Controller (en segundos) -->
+    <controller-heartbeat-interval>60</controller-heartbeat-interval>
+    
+</controller-info>
