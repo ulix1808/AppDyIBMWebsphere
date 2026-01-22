@@ -128,6 +128,9 @@ sudo mv /opt/appdynamics/appdynamics-java-agent-* /opt/appdynamics/java-agent
 sudo chown -R wasadmin:wasgroup /opt/appdynamics/java-agent
 sudo chmod -R 755 /opt/appdynamics/java-agent
 
+# Nota: El javaagent.jar NO necesita permisos de ejecución (chmod +x)
+# Solo requiere permisos de lectura, ya que se carga mediante -javaagent en JVM
+
 # Crear directorio de logs con permisos de escritura
 sudo mkdir -p /opt/appdynamics/java-agent/logs
 sudo chown -R wasadmin:wasgroup /opt/appdynamics/java-agent/logs
@@ -511,6 +514,28 @@ chmod -R 775 /opt/appdynamics/java-agent/logs
 chown -R wasadmin:wasgroup /opt/appdynamics/java-agent/logs
 ```
 
+#### Permisos del javaagent.jar
+
+**Importante:** El archivo `javaagent.jar` NO necesita permisos de ejecución (`chmod +x`). 
+
+El `javaagent.jar` es un archivo JAR estándar que se carga mediante la opción `-javaagent` de la JVM, no se ejecuta directamente como un binario. Solo requiere permisos de **lectura**:
+
+```bash
+# Verificar permisos del javaagent.jar
+ls -l /opt/appdynamics/java-agent/javaagent.jar
+# Debe mostrar: -rw-r--r-- (permisos de lectura, NO necesita ejecución)
+
+# Si es necesario, configurar permisos de lectura
+chmod 644 /opt/appdynamics/java-agent/javaagent.jar
+chown wasadmin:wasgroup /opt/appdynamics/java-agent/javaagent.jar
+```
+
+**Diferencia importante:**
+- **Scripts shell (.sh)**: Requieren permisos de ejecución (`chmod +x`)
+- **Archivos JAR (javaagent.jar)**: Solo requieren permisos de lectura (NO `chmod +x`)
+
+El `javaagent.jar` se carga automáticamente por la JVM cuando se especifica en los JVM arguments con `-javaagent:/ruta/javaagent.jar`.
+
 ---
 
 ## Configuración del Controller
@@ -620,6 +645,8 @@ grep -i "connected\|registered" /opt/appdynamics/java-agent/logs/agent.log
 2. Verificar permisos de archivos:
    ```bash
    ls -la /opt/appdynamics/java-agent/javaagent.jar
+   # Debe tener permisos de lectura (644 o 755), NO necesita ejecución (chmod +x)
+   # El javaagent.jar se carga por la JVM, no se ejecuta directamente
    ```
 
 3. Verificar que la aplicación esté siendo ejecutada por el JVM configurado
@@ -661,6 +688,7 @@ grep -i "connected\|registered" /opt/appdynamics/java-agent/logs/agent.log
 **Síntomas:**
 - Errores de acceso denegado en logs
 - El agente no puede escribir logs
+- Errores al cargar el agente
 
 **Soluciones:**
 1. Verificar permisos:
@@ -673,6 +701,19 @@ grep -i "connected\|registered" /opt/appdynamics/java-agent/logs/agent.log
    ```bash
    chown -R wasadmin:wasgroup /opt/appdynamics/java-agent
    ```
+
+3. **Verificar permisos del javaagent.jar:**
+   ```bash
+   # El javaagent.jar solo necesita permisos de lectura (NO ejecución)
+   ls -l /opt/appdynamics/java-agent/javaagent.jar
+   # Debe mostrar: -rw-r--r-- o -rwxr-xr-x (lectura, NO necesita chmod +x)
+   
+   # Si es necesario, configurar permisos correctos:
+   chmod 644 /opt/appdynamics/java-agent/javaagent.jar
+   # NOTA: NO usar chmod +x en archivos JAR, solo permisos de lectura
+   ```
+
+**Importante:** El `javaagent.jar` es un archivo JAR que se carga por la JVM mediante `-javaagent`, no se ejecuta directamente. Por lo tanto, NO necesita permisos de ejecución (`chmod +x`), solo permisos de lectura.
 
 ### Comandos Útiles para Diagnóstico
 
