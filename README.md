@@ -28,7 +28,9 @@
 
 ### Información Necesaria
 Antes de comenzar, asegúrese de tener:
-- URL del Controller de AppDynamics (ej: `http://controller.example.com:8090`)
+- URL del Controller de AppDynamics:
+  - **On-Premise:** `http://controller.example.com:8090` o `https://controller.example.com:8181`
+  - **SaaS:** `https://saas.appdynamics.com` (puerto 443 por defecto)
 - Nombre de la aplicación en AppDynamics
 - Nombre del tier
 - Nombre del nodo
@@ -73,8 +75,11 @@ Edite el archivo `conf/controller-info.xml`:
 <?xml version="1.0" encoding="UTF-8"?>
 <controller-info>
     <!-- Controller Configuration -->
+    <!-- On-Premise: controller.example.com | SaaS: saas.appdynamics.com -->
     <controller-host>controller.example.com</controller-host>
+    <!-- On-Premise: 8090 (HTTP) o 8181 (HTTPS) | SaaS: 443 (HTTPS) -->
     <controller-port>8090</controller-port>
+    <!-- On-Premise: false para HTTP, true para HTTPS | SaaS: siempre true -->
     <controller-ssl-enabled>false</controller-ssl-enabled>
     
     <!-- Application Configuration -->
@@ -149,7 +154,7 @@ appdynamics.instrumentation.methods=
 -Dappdynamics.agent.tierName=WebSphere-Tier
 -Dappdynamics.agent.nodeName=WebSphere-Node-1
 -Dappdynamics.controller.hostName=controller.example.com
--Dappdynamics.controller.port=8090
+-Dappdynamics.controller.port=8090  # On-Premise: 8090 o 8181 | SaaS: 443
 -Dappdynamics.controller.ssl.enabled=false
 -Dappdynamics.agent.accountName=customer1
 -Dappdynamics.agent.accountAccessKey=tu-access-key-aqui
@@ -203,41 +208,73 @@ El agente de AppDynamics necesita conectividad de red desde el servidor WebSpher
 
 ### 1. Puertos Requeridos
 
+**Importante:** Los puertos requeridos dependen del tipo de instalación de AppDynamics:
+
+#### AppDynamics On-Premise
 | Puerto | Protocolo | Dirección | Descripción |
 |--------|-----------|-----------|-------------|
-| **8090** (HTTP) o **8181** (HTTPS) | TCP | Saliente | Comunicación con el Controller |
-| **443** | TCP | Saliente | Si se usa SSL/TLS |
-| **80** | TCP | Saliente | Si se usa HTTP sin SSL |
+| **8090** (HTTP) | TCP | Saliente | Comunicación con el Controller On-Premise (HTTP) |
+| **8181** (HTTPS) | TCP | Saliente | Comunicación con el Controller On-Premise (HTTPS) |
+
+#### AppDynamics SaaS (Cloud)
+| Puerto | Protocolo | Dirección | Descripción |
+|--------|-----------|-----------|-------------|
+| **443** (HTTPS) | TCP | Saliente | Comunicación con el Controller SaaS (siempre HTTPS) |
+
+**Nota:** Para AppDynamics SaaS, el puerto 443 es el único puerto necesario ya que todas las comunicaciones se realizan a través de HTTPS.
 
 ### 2. Configuración de Firewall
 
 #### Reglas de Firewall Salientes
 
-Configure las reglas de firewall para permitir tráfico saliente:
+Configure las reglas de firewall para permitir tráfico saliente según su tipo de instalación:
 
+**Para AppDynamics On-Premise:**
 ```bash
 # Ejemplo para iptables (Linux)
-iptables -A OUTPUT -p tcp --dport 8090 -j ACCEPT
-iptables -A OUTPUT -p tcp --dport 8181 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 8090 -j ACCEPT  # HTTP
+iptables -A OUTPUT -p tcp --dport 8181 -j ACCEPT  # HTTPS
 
 # Ejemplo para Windows Firewall
 netsh advfirewall firewall add rule name="AppDynamics Controller HTTP" dir=out action=allow protocol=TCP localport=8090
 netsh advfirewall firewall add rule name="AppDynamics Controller HTTPS" dir=out action=allow protocol=TCP localport=8181
 ```
 
+**Para AppDynamics SaaS:**
+```bash
+# Ejemplo para iptables (Linux)
+iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT  # HTTPS (SaaS siempre usa 443)
+
+# Ejemplo para Windows Firewall
+netsh advfirewall firewall add rule name="AppDynamics Controller SaaS" dir=out action=allow protocol=TCP localport=443
+```
+
 #### Verificación de Conectividad
 
-Antes de iniciar el agente, verifique la conectividad:
+Antes de iniciar el agente, verifique la conectividad según su tipo de instalación:
 
+**Para AppDynamics On-Premise:**
 ```bash
-# Verificar conectividad HTTP
+# Verificar conectividad HTTP (puerto 8090)
 telnet controller.example.com 8090
 
 # O usando curl
 curl -v http://controller.example.com:8090/controller/rest/serverstatus
 
-# Verificar conectividad HTTPS
+# Verificar conectividad HTTPS (puerto 8181)
 openssl s_client -connect controller.example.com:8181
+```
+
+**Para AppDynamics SaaS:**
+```bash
+# Verificar conectividad HTTPS (puerto 443)
+telnet saas.appdynamics.com 443
+
+# O usando curl
+curl -v https://saas.appdynamics.com/controller/rest/serverstatus
+
+# Verificar conectividad SSL
+openssl s_client -connect saas.appdynamics.com:443
 ```
 
 ### 3. Configuración de Proxy
@@ -316,7 +353,9 @@ chown -R wasadmin:wasgroup /opt/appdynamics/java-agent/logs
 
 ### 1. Verificar Acceso al Controller
 
-1. Acceda a la consola del Controller: `http://controller.example.com:8090/controller`
+1. Acceda a la consola del Controller:
+   - **On-Premise:** `http://controller.example.com:8090/controller` o `https://controller.example.com:8181/controller`
+   - **SaaS:** `https://saas.appdynamics.com/controller`
 2. Verifique que puede iniciar sesión con las credenciales configuradas
 3. Confirme que la aplicación, tier y nodo están configurados correctamente
 
@@ -389,7 +428,10 @@ grep -i "connected\|registered" /opt/appdynamics/java-agent/logs/agent.log
 **Soluciones:**
 1. Verificar conectividad de red:
    ```bash
+   # On-Premise
    telnet controller.example.com 8090
+   # SaaS
+   telnet saas.appdynamics.com 443
    ```
 
 2. Verificar configuración en `controller-info.xml`:
@@ -478,7 +520,11 @@ ps aux | grep javaagent
 env | grep APPDYNAMICS
 
 # Verificar conectividad
-netstat -an | grep 8090
+   # On-Premise
+   netstat -an | grep 8090
+   netstat -an | grep 8181
+   # SaaS
+   netstat -an | grep 443
 
 # Verificar logs del sistema
 journalctl -u websphere -f  # En sistemas con systemd
@@ -516,7 +562,9 @@ Use este checklist para asegurar una implementación completa:
 - [ ] `controller-info.xml` configurado correctamente
 - [ ] Variables de entorno configuradas en WebSphere (si aplica)
 - [ ] JVM arguments agregados en WebSphere
-- [ ] Conectividad de red verificada (puertos 8090/8181)
+- [ ] Conectividad de red verificada:
+  - [ ] On-Premise: puertos 8090 (HTTP) o 8181 (HTTPS)
+  - [ ] SaaS: puerto 443 (HTTPS)
 - [ ] Firewall configurado para permitir tráfico saliente
 - [ ] Proxy configurado (si aplica)
 - [ ] Certificados SSL importados (si aplica)

@@ -51,6 +51,8 @@ dig +short controller.example.com
 ```
 
 ### Verificar conectividad de puertos
+
+**Para AppDynamics On-Premise:**
 ```bash
 # Verificar puerto HTTP (8090)
 telnet controller.example.com 8090
@@ -65,16 +67,42 @@ timeout 5 bash -c "cat < /dev/null > /dev/tcp/controller.example.com/8090" && ec
 openssl s_client -connect controller.example.com:8181 -showcerts
 ```
 
-### Verificar acceso HTTP/HTTPS
+**Para AppDynamics SaaS:**
 ```bash
-# Verificar endpoint del Controller (HTTP)
+# Verificar puerto HTTPS (443)
+telnet saas.appdynamics.com 443
+
+# O usando nc (netcat)
+nc -zv saas.appdynamics.com 443
+
+# O usando timeout con bash
+timeout 5 bash -c "cat < /dev/null > /dev/tcp/saas.appdynamics.com/443" && echo "Conectado" || echo "No conectado"
+
+# Verificar SSL
+openssl s_client -connect saas.appdynamics.com:443 -showcerts
+```
+
+### Verificar acceso HTTP/HTTPS
+
+**Para AppDynamics On-Premise:**
+```bash
+# Verificar endpoint del Controller (HTTP - puerto 8090)
 curl -v http://controller.example.com:8090/controller/rest/serverstatus
 
-# Verificar endpoint del Controller (HTTPS, sin verificar certificado)
+# Verificar endpoint del Controller (HTTPS - puerto 8181, sin verificar certificado)
 curl -k -v https://controller.example.com:8181/controller/rest/serverstatus
 
 # Verificar con autenticación básica
 curl -u usuario:password http://controller.example.com:8090/controller/rest/serverstatus
+```
+
+**Para AppDynamics SaaS:**
+```bash
+# Verificar endpoint del Controller (HTTPS - puerto 443)
+curl -v https://saas.appdynamics.com/controller/rest/serverstatus
+
+# Verificar con autenticación básica
+curl -u usuario:password https://saas.appdynamics.com/controller/rest/serverstatus
 ```
 
 ### Verificar rutas de red
@@ -130,9 +158,20 @@ grep -B 50 -i error /opt/appdynamics/java-agent/logs/agent.log | tail -n 50
 ## Gestión de Certificados SSL
 
 ### Obtener certificado del Controller
+
+**Para AppDynamics On-Premise:**
 ```bash
-# Obtener certificado
+# Obtener certificado (puerto 8181)
 openssl s_client -connect controller.example.com:8181 -showcerts </dev/null 2>/dev/null | openssl x509 -outform PEM > controller.crt
+
+# Ver detalles del certificado
+openssl x509 -in controller.crt -text -noout
+```
+
+**Para AppDynamics SaaS:**
+```bash
+# Obtener certificado (puerto 443)
+openssl s_client -connect saas.appdynamics.com:443 -showcerts </dev/null 2>/dev/null | openssl x509 -outform PEM > controller.crt
 
 # Ver detalles del certificado
 openssl x509 -in controller.crt -text -noout
@@ -155,11 +194,13 @@ keytool -import -alias appdynamics-controller -file controller.crt \
 ## Configuración de Firewall
 
 ### Linux - iptables
+
+**Para AppDynamics On-Premise:**
 ```bash
-# Agregar regla para puerto HTTP
+# Agregar regla para puerto HTTP (8090)
 iptables -A OUTPUT -p tcp --dport 8090 -j ACCEPT
 
-# Agregar regla para puerto HTTPS
+# Agregar regla para puerto HTTPS (8181)
 iptables -A OUTPUT -p tcp --dport 8181 -j ACCEPT
 
 # Ver reglas actuales
@@ -171,13 +212,29 @@ service iptables save
 iptables-save > /etc/iptables/rules.v4
 ```
 
-### Linux - firewalld
+**Para AppDynamics SaaS:**
 ```bash
-# Agregar regla para puerto HTTP
+# Agregar regla para puerto HTTPS (443)
+iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT
+
+# Ver reglas actuales
+iptables -L OUTPUT -n | grep 443
+
+# Guardar reglas (según distribución)
+service iptables save
+# O
+iptables-save > /etc/iptables/rules.v4
+```
+
+### Linux - firewalld
+
+**Para AppDynamics On-Premise:**
+```bash
+# Agregar regla para puerto HTTP (8090)
 firewall-cmd --permanent --add-port=8090/tcp
 firewall-cmd --reload
 
-# Agregar regla para puerto HTTPS
+# Agregar regla para puerto HTTPS (8181)
 firewall-cmd --permanent --add-port=8181/tcp
 firewall-cmd --reload
 
@@ -185,16 +242,37 @@ firewall-cmd --reload
 firewall-cmd --list-ports
 ```
 
+**Para AppDynamics SaaS:**
+```bash
+# Agregar regla para puerto HTTPS (443)
+firewall-cmd --permanent --add-port=443/tcp
+firewall-cmd --reload
+
+# Ver reglas
+firewall-cmd --list-ports
+```
+
 ### Windows
+
+**Para AppDynamics On-Premise:**
 ```powershell
-# Agregar regla para puerto HTTP
+# Agregar regla para puerto HTTP (8090)
 netsh advfirewall firewall add rule name="AppDynamics Controller HTTP" dir=out action=allow protocol=TCP localport=8090
 
-# Agregar regla para puerto HTTPS
+# Agregar regla para puerto HTTPS (8181)
 netsh advfirewall firewall add rule name="AppDynamics Controller HTTPS" dir=out action=allow protocol=TCP localport=8181
 
 # Ver reglas
 netsh advfirewall firewall show rule name="AppDynamics Controller HTTP"
+```
+
+**Para AppDynamics SaaS:**
+```powershell
+# Agregar regla para puerto HTTPS (443)
+netsh advfirewall firewall add rule name="AppDynamics Controller SaaS" dir=out action=allow protocol=TCP localport=443
+
+# Ver reglas
+netsh advfirewall firewall show rule name="AppDynamics Controller SaaS"
 ```
 
 ## Gestión de Permisos
@@ -250,12 +328,16 @@ grep -i appdynamics $WAS_HOME/profiles/*/logs/*/SystemOut.log
 # Ver uso de memoria del proceso Java
 ps aux | grep java | grep was
 
-# Ver conexiones de red activas
+# Ver conexiones de red activas (On-Premise)
 netstat -an | grep 8090
 netstat -an | grep 8181
 
+# Ver conexiones de red activas (SaaS)
+netstat -an | grep 443
+
 # Ver conexiones establecidas al Controller
 netstat -an | grep ESTABLISHED | grep controller
+netstat -an | grep ESTABLISHED | grep appdynamics
 ```
 
 ### Verificar variables del sistema Java

@@ -10,7 +10,9 @@ Use este checklist para asegurar una implementación completa y exitosa.
 - [ ] Acceso de administrador al servidor WebSphere
 - [ ] Información del Controller de AppDynamics disponible:
   - [ ] URL del Controller
-  - [ ] Puerto (HTTP 8090 o HTTPS 8181)
+  - [ ] Puerto:
+    - [ ] On-Premise: 8090 (HTTP) o 8181 (HTTPS)
+    - [ ] SaaS: 443 (HTTPS)
   - [ ] Account Name
   - [ ] Account Access Key
   - [ ] Nombre de la aplicación
@@ -48,7 +50,9 @@ Use este checklist para asegurar una implementación completa y exitosa.
 ### Configuración de controller-info.xml
 - [ ] Copiar `controller-info.xml.example` a `conf/controller-info.xml`
 - [ ] Configurar `controller-host`
-- [ ] Configurar `controller-port` (8090 o 8181)
+- [ ] Configurar `controller-port`:
+  - [ ] On-Premise: 8090 (HTTP) o 8181 (HTTPS)
+  - [ ] SaaS: 443 (HTTPS)
 - [ ] Configurar `controller-ssl-enabled` (true/false)
 - [ ] Configurar `application-name`
 - [ ] Configurar `tier-name`
@@ -69,13 +73,16 @@ Use este checklist para asegurar una implementación completa y exitosa.
 ### Verificación de Red
 - [ ] Verificar resolución DNS del Controller: `nslookup controller.example.com`
 - [ ] Verificar conectividad de red: `ping controller.example.com`
-- [ ] Verificar puerto HTTP: `telnet controller.example.com 8090` o `curl http://controller.example.com:8090/controller/rest/serverstatus`
-- [ ] Si usa HTTPS, verificar puerto: `openssl s_client -connect controller.example.com:8181`
+- [ ] Verificar conectividad según tipo:
+  - [ ] On-Premise HTTP: `telnet controller.example.com 8090` o `curl http://controller.example.com:8090/controller/rest/serverstatus`
+  - [ ] On-Premise HTTPS: `openssl s_client -connect controller.example.com:8181`
+  - [ ] SaaS HTTPS: `telnet saas.appdynamics.com 443` o `curl https://saas.appdynamics.com/controller/rest/serverstatus`
 
 ### Configuración de Firewall
 - [ ] Identificar firewall utilizado (iptables, firewalld, Windows Firewall, etc.)
-- [ ] Agregar regla para puerto HTTP 8090 (saliente)
-- [ ] Si usa HTTPS, agregar regla para puerto 8181 (saliente)
+- [ ] Agregar reglas de firewall según tipo:
+  - [ ] On-Premise: puerto 8090 (HTTP) y/o 8181 (HTTPS)
+  - [ ] SaaS: puerto 443 (HTTPS)
 - [ ] Verificar que las reglas estén activas
 - [ ] Probar conectividad después de configurar firewall
 

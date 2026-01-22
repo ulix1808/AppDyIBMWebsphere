@@ -11,9 +11,13 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Variables de configuración (ajustar según su entorno)
+# IMPORTANTE: 
+# - Para AppDynamics On-Premise: usar puertos 8090 (HTTP) o 8181 (HTTPS)
+# - Para AppDynamics SaaS: usar puerto 443 (HTTPS)
 CONTROLLER_HOST="controller.example.com"
-CONTROLLER_HTTP_PORT="8090"
-CONTROLLER_HTTPS_PORT="8181"
+CONTROLLER_HTTP_PORT="8090"   # On-Premise HTTP
+CONTROLLER_HTTPS_PORT="8181"  # On-Premise HTTPS
+# Para SaaS, usar: CONTROLLER_HTTPS_PORT="443"
 USE_SSL=false
 
 echo "=========================================="

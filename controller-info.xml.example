@@ -8,13 +8,19 @@
     <!-- Configuración del Controller                 -->
     <!-- ============================================ -->
     
-    <!-- Hostname o IP del Controller de AppDynamics -->
+    <!-- Hostname o IP del Controller de AppDynamics
+         - On-Premise: controller.example.com
+         - SaaS: saas.appdynamics.com -->
     <controller-host>controller.example.com</controller-host>
     
-    <!-- Puerto del Controller (8090 para HTTP, 8181 para HTTPS) -->
+    <!-- Puerto del Controller:
+         - On-Premise: 8090 (HTTP) o 8181 (HTTPS)
+         - SaaS: 443 (HTTPS, generalmente no se especifica en la URL) -->
     <controller-port>8090</controller-port>
     
-    <!-- Habilitar SSL/TLS (true/false) -->
+    <!-- Habilitar SSL/TLS:
+         - On-Premise: false para HTTP (puerto 8090), true para HTTPS (puerto 8181)
+         - SaaS: siempre true (puerto 443) -->
     <controller-ssl-enabled>false</controller-ssl-enabled>
     
     <!-- Verificar certificado SSL (true/false) -->
