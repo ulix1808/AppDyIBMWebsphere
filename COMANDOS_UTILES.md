@@ -24,6 +24,8 @@ echo $APPDYNAMICS_AGENT_TIER_NAME
 echo $APPDYNAMICS_AGENT_APPLICATION_NAME
 ```
 
+**Nota:** Las variables de entorno tienen precedencia sobre `controller-info.xml`. Si una variable está configurada, sobrescribirá el valor correspondiente en el archivo XML.
+
 ### Verificar archivos de configuración
 ```bash
 # Verificar que existe el archivo de configuración
@@ -35,6 +37,29 @@ grep -v "access-key" /opt/appdynamics/java-agent/conf/controller-info.xml
 # Validar XML
 xmllint --noout /opt/appdynamics/java-agent/conf/controller-info.xml
 ```
+
+### Verificar qué valores se están usando (Precedencia)
+
+Para determinar qué valores están siendo usados (variables de entorno vs controller-info.xml):
+
+```bash
+# Verificar si hay variables de entorno configuradas
+echo "=== Variables de Entorno ==="
+env | grep APPDYNAMICS
+
+# Ver valores en controller-info.xml
+echo "=== Valores en controller-info.xml ==="
+grep -E "node-name|tier-name|application-name" /opt/appdynamics/java-agent/conf/controller-info.xml
+
+# Comparar: Si hay variable de entorno, esa tiene precedencia
+# Ejemplo: Si APPDYNAMICS_AGENT_NODE_NAME está configurada, 
+# ese valor se usará en lugar del <node-name> en controller-info.xml
+```
+
+**Orden de Precedencia:**
+1. Variables de entorno (`APPDYNAMICS_*`)
+2. Propiedades del sistema Java (`-Dappdynamics.*`)
+3. Archivo `controller-info.xml`
 
 ## Verificación de Conectividad
 

@@ -106,12 +106,14 @@ Use este checklist para asegurar una implementación completa y exitosa.
 ## Fase 5: Configuración en WebSphere
 
 ### Opción A: Variables de Entorno y JVM Arguments
+- [ ] Entender que las variables de entorno sobrescriben `controller-info.xml`
+- [ ] Planificar uso del mismo agente en múltiples servidores (si aplica)
 - [ ] Acceder a la consola administrativa de WebSphere
 - [ ] Navegar a: Servidores > Application Servers > [nombre-del-servidor]
 - [ ] Ir a: Java and Process Management > Process Definition > Environment Entries
-- [ ] Agregar variable `APPDYNAMICS_AGENT_NODE_NAME`
-- [ ] Agregar variable `APPDYNAMICS_AGENT_TIER_NAME`
-- [ ] Agregar variable `APPDYNAMICS_AGENT_APPLICATION_NAME`
+- [ ] Agregar variable `APPDYNAMICS_AGENT_NODE_NAME` (único por servidor)
+- [ ] Agregar variable `APPDYNAMICS_AGENT_TIER_NAME` (puede ser igual para servidores similares)
+- [ ] Agregar variable `APPDYNAMICS_AGENT_APPLICATION_NAME` (solo si difiere de controller-info.xml)
 - [ ] Ir a: Java and Process Management > Java Virtual Machine
 - [ ] Agregar JVM argument: `-javaagent:/opt/appdynamics/java-agent/javaagent.jar`
 - [ ] Agregar JVM arguments adicionales según necesidad

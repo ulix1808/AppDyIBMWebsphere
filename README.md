@@ -103,6 +103,8 @@ Edite el archivo `conf/controller-info.xml`:
 
 **Nota:** Reemplace los valores con la información de su entorno.
 
+**Importante sobre Precedencia:** Los valores en este archivo pueden ser sobrescritos por variables de entorno o propiedades del sistema Java. Esto es útil cuando se usa el mismo agente en múltiples servidores. Vea la sección [Precedencia de Configuración](#importante-precedencia-de-configuración) para más detalles.
+
 ### 2. Configurar Propiedades del Sistema (Opcional)
 
 Si necesita configuración adicional, cree o edite `conf/system.properties`:
@@ -127,6 +129,66 @@ appdynamics.instrumentation.methods=
 
 ## Configuración en IBM WebSphere
 
+### Importante: Precedencia de Configuración
+
+**Las variables de entorno y propiedades del sistema tienen precedencia sobre el archivo `controller-info.xml`.**
+
+Esto permite usar el mismo agente de AppDynamics en múltiples servidores, cambiando solo las variables de entorno para cada servidor. El orden de precedencia es:
+
+1. **Variables de entorno del sistema** (más alta prioridad)
+2. **Propiedades del sistema Java** (`-Dappdynamics.*`)
+3. **Archivo `controller-info.xml`** (menor prioridad)
+
+#### Variables de Entorno que Sobrescriben controller-info.xml
+
+Las siguientes variables de entorno pueden sobrescribir valores en `controller-info.xml`:
+
+| Variable de Entorno | Sobrescribe en controller-info.xml | Uso Recomendado |
+|---------------------|-----------------------------------|-----------------|
+| `APPDYNAMICS_AGENT_NODE_NAME` | `<node-name>` | **Recomendado** - Identificar servidor único |
+| `APPDYNAMICS_AGENT_TIER_NAME` | `<tier-name>` | **Recomendado** - Agrupar servidores similares |
+| `APPDYNAMICS_AGENT_APPLICATION_NAME` | `<application-name>` | Opcional - Si todos los servidores usan la misma app |
+| `APPDYNAMICS_CONTROLLER_HOST_NAME` | `<controller-host>` | Opcional - Si todos usan el mismo controller |
+| `APPDYNAMICS_CONTROLLER_PORT` | `<controller-port>` | Opcional - Si todos usan el mismo puerto |
+| `APPDYNAMICS_CONTROLLER_SSL_ENABLED` | `<controller-ssl-enabled>` | Opcional - Si todos usan el mismo protocolo |
+| `APPDYNAMICS_AGENT_ACCOUNT_NAME` | `<account-name>` | Opcional - Si todos usan la misma cuenta |
+| `APPDYNAMICS_AGENT_ACCOUNT_ACCESS_KEY` | `<account-access-key>` | Opcional - Generalmente se deja en controller-info.xml |
+
+#### Ventaja: Un Solo Agente para Múltiples Servidores
+
+**Escenario:** Tiene 5 servidores WebSphere y quiere instrumentarlos todos con AppDynamics.
+
+**Solución:**
+1. Copie el mismo agente (con `controller-info.xml` configurado) a todos los servidores
+2. Configure solo las variables de entorno específicas en cada servidor:
+   - `APPDYNAMICS_AGENT_NODE_NAME` (único por servidor)
+   - `APPDYNAMICS_AGENT_TIER_NAME` (puede ser el mismo para servidores similares)
+
+**Ejemplo práctico:**
+
+Servidor 1 (Producción):
+```bash
+APPDYNAMICS_AGENT_NODE_NAME=WebSphere-Prod-01
+APPDYNAMICS_AGENT_TIER_NAME=WebSphere-Production
+APPDYNAMICS_AGENT_APPLICATION_NAME=MiAplicacion
+```
+
+Servidor 2 (Producción):
+```bash
+APPDYNAMICS_AGENT_NODE_NAME=WebSphere-Prod-02
+APPDYNAMICS_AGENT_TIER_NAME=WebSphere-Production
+APPDYNAMICS_AGENT_APPLICATION_NAME=MiAplicacion
+```
+
+Servidor 3 (Desarrollo):
+```bash
+APPDYNAMICS_AGENT_NODE_NAME=WebSphere-Dev-01
+APPDYNAMICS_AGENT_TIER_NAME=WebSphere-Development
+APPDYNAMICS_AGENT_APPLICATION_NAME=MiAplicacion-Dev
+```
+
+Todos usan el mismo `controller-info.xml` base, pero cada uno se identifica correctamente mediante las variables de entorno.
+
 ### Opción 1: Configuración mediante Variables de Entorno (Recomendado)
 
 #### Paso 1: Configurar Variables de Entorno en WebSphere
@@ -135,13 +197,15 @@ appdynamics.instrumentation.methods=
 2. Navegue a: **Servidores** > **Application Servers** > **[nombre-del-servidor]**
 3. En la sección **Java and Process Management**, haga clic en **Process Definition**
 4. Haga clic en **Environment Entries**
-5. Agregue las siguientes variables:
+5. Agregue las siguientes variables (estas sobrescribirán los valores en `controller-info.xml`):
 
-| Nombre | Valor |
-|--------|-------|
-| `APPDYNAMICS_AGENT_NODE_NAME` | `WebSphere-Node-1` |
-| `APPDYNAMICS_AGENT_TIER_NAME` | `WebSphere-Tier` |
-| `APPDYNAMICS_AGENT_APPLICATION_NAME` | `MiAplicacion` |
+| Nombre | Valor | Descripción |
+|--------|-------|-------------|
+| `APPDYNAMICS_AGENT_NODE_NAME` | `WebSphere-Node-1` | **Recomendado** - Nombre único del nodo (cambiar por servidor) |
+| `APPDYNAMICS_AGENT_TIER_NAME` | `WebSphere-Tier` | **Recomendado** - Nombre del tier (puede ser igual para servidores similares) |
+| `APPDYNAMICS_AGENT_APPLICATION_NAME` | `MiAplicacion` | Opcional - Solo si difiere del valor en controller-info.xml |
+
+**Nota:** Si no configura estas variables, se usarán los valores del archivo `controller-info.xml`. Configurarlas permite usar el mismo agente en múltiples servidores cambiando solo estas variables.
 
 #### Paso 2: Configurar JVM Arguments
 
@@ -150,18 +214,24 @@ appdynamics.instrumentation.methods=
 
 ```bash
 -javaagent:/opt/appdynamics/java-agent/javaagent.jar
+# Las siguientes propiedades sobrescriben controller-info.xml
+# Solo configure las que necesite cambiar por servidor
 -Dappdynamics.agent.applicationName=MiAplicacion
 -Dappdynamics.agent.tierName=WebSphere-Tier
 -Dappdynamics.agent.nodeName=WebSphere-Node-1
+# Configuración del Controller (generalmente se deja en controller-info.xml)
 -Dappdynamics.controller.hostName=controller.example.com
 -Dappdynamics.controller.port=8090  # On-Premise: 8090 o 8181 | SaaS: 443
 -Dappdynamics.controller.ssl.enabled=false
 -Dappdynamics.agent.accountName=customer1
 -Dappdynamics.agent.accountAccessKey=tu-access-key-aqui
+# Configuración de rutas (generalmente se deja en controller-info.xml)
 -Dappdynamics.agent.runtimeDir=/opt/appdynamics/java-agent
 -Dappdynamics.agent.logging.dir=/opt/appdynamics/java-agent/logs
 -Dappdynamics.agent.logging.level=INFO
 ```
+
+**Nota:** Las propiedades del sistema (`-Dappdynamics.*`) también sobrescriben `controller-info.xml`. Para usar el mismo agente en múltiples servidores, configure solo las propiedades que varían por servidor (principalmente `nodeName` y `tierName`).
 
 ### Opción 2: Configuración mediante Script de Inicio
 
@@ -172,10 +242,14 @@ appdynamics.instrumentation.methods=
 ```bash
 #!/bin/bash
 # Script de inicio para AppDynamics en WebSphere
+# Este script permite usar el mismo agente en múltiples servidores
+# cambiando solo las variables de entorno
 
-export APPDYNAMICS_AGENT_NODE_NAME="WebSphere-Node-1"
-export APPDYNAMICS_AGENT_TIER_NAME="WebSphere-Tier"
-export APPDYNAMICS_AGENT_APPLICATION_NAME="MiAplicacion"
+# Variables que sobrescriben controller-info.xml
+# IMPORTANTE: Cambiar estos valores por servidor
+export APPDYNAMICS_AGENT_NODE_NAME="WebSphere-Node-1"  # Cambiar por servidor
+export APPDYNAMICS_AGENT_TIER_NAME="WebSphere-Tier"    # Puede ser igual para servidores similares
+export APPDYNAMICS_AGENT_APPLICATION_NAME="MiAplicacion" # Opcional si es diferente
 
 # Agregar el agente al classpath
 export JAVA_OPTS="$JAVA_OPTS -javaagent:/opt/appdynamics/java-agent/javaagent.jar"
@@ -187,6 +261,8 @@ chmod +x /opt/appdynamics/scripts/startAppD.sh
 ```
 
 3. Configure WebSphere para ejecutar este script antes del inicio del servidor.
+
+**Ventaja:** Puede copiar el mismo script a todos los servidores y solo cambiar las variables `APPDYNAMICS_AGENT_NODE_NAME` y `APPDYNAMICS_AGENT_TIER_NAME` en cada uno.
 
 ### Opción 3: Configuración mediante Archivo de Propiedades del Sistema
 
@@ -529,6 +605,75 @@ env | grep APPDYNAMICS
 # Verificar logs del sistema
 journalctl -u websphere -f  # En sistemas con systemd
 ```
+
+---
+
+## Mejores Prácticas
+
+### Uso del Mismo Agente en Múltiples Servidores
+
+**Escenario común:** Tiene varios servidores WebSphere y quiere instrumentarlos todos con AppDynamics.
+
+**Solución recomendada:**
+
+1. **Configure `controller-info.xml` con valores comunes:**
+   - Controller host y puerto
+   - Account name y access key
+   - Application name (si todos usan la misma)
+   - Configuración de logging
+   - Configuración de SSL
+
+2. **Use variables de entorno para valores específicos por servidor:**
+   - `APPDYNAMICS_AGENT_NODE_NAME` - **Siempre configurar** (único por servidor)
+   - `APPDYNAMICS_AGENT_TIER_NAME` - **Recomendado** (puede agrupar servidores similares)
+   - `APPDYNAMICS_AGENT_APPLICATION_NAME` - Solo si difiere entre servidores
+
+3. **Ventajas de este enfoque:**
+   - Un solo agente para copiar a todos los servidores
+   - Fácil mantenimiento (actualizar controller-info.xml una vez)
+   - Identificación clara de cada servidor mediante node-name
+   - Agrupación lógica mediante tier-name
+
+**Ejemplo de implementación:**
+
+```bash
+# Servidor 1 - Producción
+APPDYNAMICS_AGENT_NODE_NAME=WebSphere-Prod-01
+APPDYNAMICS_AGENT_TIER_NAME=WebSphere-Production
+
+# Servidor 2 - Producción
+APPDYNAMICS_AGENT_NODE_NAME=WebSphere-Prod-02
+APPDYNAMICS_AGENT_TIER_NAME=WebSphere-Production
+
+# Servidor 3 - Desarrollo
+APPDYNAMICS_AGENT_NODE_NAME=WebSphere-Dev-01
+APPDYNAMICS_AGENT_TIER_NAME=WebSphere-Development
+```
+
+Todos usan el mismo `controller-info.xml`, pero se identifican correctamente en AppDynamics.
+
+### Convenciones de Nomenclatura
+
+- **Node Name:** Use un formato descriptivo que incluya:
+  - Ambiente (Prod, Dev, QA)
+  - Tipo de servidor (WebSphere, JBoss, etc.)
+  - Número o identificador único
+  - Ejemplo: `WebSphere-Prod-01`, `WebSphere-Dev-02`
+
+- **Tier Name:** Agrupe servidores lógicos:
+  - Por ambiente: `WebSphere-Production`, `WebSphere-Development`
+  - Por función: `WebSphere-Frontend`, `WebSphere-Backend`
+  - Por aplicación: `MiApp-WebSphere`
+
+- **Application Name:** Mantenga consistencia:
+  - Use el mismo nombre en todos los servidores de la misma aplicación
+  - Diferencie solo si realmente son aplicaciones diferentes
+
+### Mantenimiento
+
+- **Actualizaciones del agente:** Actualice `controller-info.xml` una vez y redistribuya
+- **Cambios de configuración:** Modifique variables de entorno en WebSphere sin tocar el agente
+- **Documentación:** Mantenga un registro de qué variables están configuradas en cada servidor
 
 ---
 

@@ -2,6 +2,27 @@
 <!-- 
     Archivo de ejemplo de configuración para AppDynamics Java Agent
     Copie este archivo a conf/controller-info.xml y ajuste los valores según su entorno
+    
+    IMPORTANTE: Precedencia de Configuración
+    =========================================
+    Las variables de entorno y propiedades del sistema tienen precedencia sobre este archivo.
+    Esto permite usar el mismo agente en múltiples servidores cambiando solo las variables.
+    
+    Orden de precedencia:
+    1. Variables de entorno (APPDYNAMICS_*)
+    2. Propiedades del sistema Java (-Dappdynamics.*)
+    3. Este archivo (controller-info.xml)
+    
+    Variables que pueden sobrescribir valores:
+    - APPDYNAMICS_AGENT_NODE_NAME sobrescribe <node-name>
+    - APPDYNAMICS_AGENT_TIER_NAME sobrescribe <tier-name>
+    - APPDYNAMICS_AGENT_APPLICATION_NAME sobrescribe <application-name>
+    - APPDYNAMICS_CONTROLLER_HOST_NAME sobrescribe <controller-host>
+    - APPDYNAMICS_CONTROLLER_PORT sobrescribe <controller-port>
+    - Y otras...
+    
+    Uso recomendado: Configure valores comunes aquí (controller, account, etc.) y use
+    variables de entorno para valores que cambian por servidor (node-name, tier-name).
 -->
 <controller-info>
     <!-- ============================================ -->
