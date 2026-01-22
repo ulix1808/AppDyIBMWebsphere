@@ -32,8 +32,17 @@ Use este checklist para asegurar una implementación completa y exitosa.
 - [ ] Descargar Java Agent compatible con Java 1.8
 - [ ] Verificar integridad del archivo descargado
 
+### Transferencia del Agente al Servidor
+- [ ] Identificar método de transferencia (SCP, SFTP, directorio compartido, etc.)
+- [ ] Transferir archivo ZIP al servidor WebSphere
+- [ ] Verificar que el archivo llegó correctamente al servidor
+- [ ] O transferir el agente ya extraído (si se prefiere)
+
 ### Instalación del Agente
+- [ ] Conectarse al servidor WebSphere (SSH)
+- [ ] Crear directorio de destino: `/opt/appdynamics`
 - [ ] Extraer el archivo ZIP en ubicación permanente (ej: `/opt/appdynamics/java-agent`)
+- [ ] Verificar que el directorio se creó correctamente
 - [ ] Verificar estructura de directorios:
   - [ ] `conf/` existe
   - [ ] `lib/` existe

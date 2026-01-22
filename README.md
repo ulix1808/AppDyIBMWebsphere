@@ -45,12 +45,100 @@ Antes de comenzar, asegúrese de tener:
 1. Acceda al portal de AppDynamics
 2. Navegue a **Download** > **Agents** > **Java Agent**
 3. Descargue la versión compatible con Java 1.8
-4. Extraiga el archivo ZIP en una ubicación permanente, por ejemplo:
-   ```bash
-   /opt/appdynamics/java-agent
-   ```
 
-### 2. Verificar la Estructura de Directorios
+**Nota:** Normalmente el agente se descarga en una máquina local y luego se copia al servidor donde se va a usar.
+
+### 2. Transferir el Agente al Servidor
+
+Si descargó el agente en una máquina local, transfiéralo al servidor WebSphere usando uno de los siguientes métodos:
+
+#### Opción A: Usando SCP (recomendado)
+
+```bash
+# Desde su máquina local, copie el archivo ZIP al servidor
+scp appdynamics-java-agent-*.zip usuario@servidor-websphere:/tmp/
+
+# O si prefiere copiar el agente ya extraído
+scp -r appdynamics-java-agent usuario@servidor-websphere:/opt/appdynamics/
+```
+
+#### Opción B: Usando SFTP
+
+```bash
+# Conectar al servidor
+sftp usuario@servidor-websphere
+
+# Dentro de SFTP, subir el archivo
+put appdynamics-java-agent-*.zip /tmp/
+exit
+```
+
+#### Opción C: Usando herramientas gráficas
+
+- **WinSCP** (Windows)
+- **FileZilla** (Multiplataforma)
+- **Cyberduck** (Mac/Windows)
+
+#### Opción D: Montar directorio compartido
+
+Si tiene acceso a un directorio compartido (NFS, SMB, etc.), puede copiar el archivo directamente.
+
+#### Opción E: Usando rsync (recomendado para directorios grandes)
+
+```bash
+# Sincronizar directorio del agente (más eficiente que scp para directorios)
+rsync -avz --progress appdynamics-java-agent/ usuario@servidor-websphere:/opt/appdynamics/java-agent/
+```
+
+**Nota:** Después de transferir, verifique que el archivo llegó correctamente:
+```bash
+# Verificar que el archivo existe en el servidor
+ssh usuario@servidor-websphere "ls -lh /tmp/appdynamics-java-agent-*.zip"
+
+# Verificar integridad (comparar checksums)
+# En máquina local:
+md5sum appdynamics-java-agent-*.zip
+# En servidor:
+ssh usuario@servidor-websphere "md5sum /tmp/appdynamics-java-agent-*.zip"
+```
+
+### 3. Extraer el Agente en el Servidor
+
+Una vez que el archivo esté en el servidor, extraiga el archivo ZIP en una ubicación permanente:
+
+```bash
+# Conectarse al servidor (si no está ya conectado)
+ssh usuario@servidor-websphere
+
+# Crear directorio de destino
+sudo mkdir -p /opt/appdynamics
+
+# Extraer el archivo ZIP
+cd /tmp
+unzip appdynamics-java-agent-*.zip -d /opt/appdynamics/
+
+# Renombrar el directorio extraído (ajustar según el nombre del archivo)
+sudo mv /opt/appdynamics/appdynamics-java-agent-* /opt/appdynamics/java-agent
+
+# O si ya extrajo localmente y copió el directorio, verificar que esté en:
+# /opt/appdynamics/java-agent
+
+# Configurar permisos (ajustar usuario según su entorno)
+# El usuario que ejecuta WebSphere debe tener acceso de lectura
+sudo chown -R wasadmin:wasgroup /opt/appdynamics/java-agent
+sudo chmod -R 755 /opt/appdynamics/java-agent
+
+# Crear directorio de logs con permisos de escritura
+sudo mkdir -p /opt/appdynamics/java-agent/logs
+sudo chown -R wasadmin:wasgroup /opt/appdynamics/java-agent/logs
+sudo chmod -R 775 /opt/appdynamics/java-agent/logs
+```
+
+**Ubicación recomendada:** `/opt/appdynamics/java-agent`
+
+**Importante:** Asegúrese de que el usuario que ejecuta WebSphere tenga permisos de lectura en el directorio del agente y permisos de escritura en el directorio de logs.
+
+### 4. Verificar la Estructura de Directorios
 
 Después de la extracción, debería tener la siguiente estructura:
 ```

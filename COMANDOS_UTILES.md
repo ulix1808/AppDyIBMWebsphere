@@ -2,6 +2,44 @@
 
 Este documento contiene comandos útiles para la administración y troubleshooting del agente de AppDynamics en IBM WebSphere.
 
+## Transferencia de Archivos al Servidor
+
+### Transferir agente usando SCP
+```bash
+# Transferir archivo ZIP desde máquina local al servidor
+scp appdynamics-java-agent-*.zip usuario@servidor-websphere:/tmp/
+
+# Transferir directorio completo (agente ya extraído)
+scp -r appdynamics-java-agent usuario@servidor-websphere:/opt/appdynamics/
+
+# Transferir con barra de progreso
+scp -v appdynamics-java-agent-*.zip usuario@servidor-websphere:/tmp/
+
+# Transferir usando puerto específico
+scp -P 2222 appdynamics-java-agent-*.zip usuario@servidor-websphere:/tmp/
+```
+
+### Transferir agente usando rsync (recomendado para directorios)
+```bash
+# Sincronizar directorio del agente (más eficiente que scp)
+rsync -avz --progress appdynamics-java-agent/ usuario@servidor-websphere:/opt/appdynamics/java-agent/
+
+# Excluir archivos temporales
+rsync -avz --exclude='*.log' --exclude='*.tmp' appdynamics-java-agent/ usuario@servidor-websphere:/opt/appdynamics/java-agent/
+```
+
+### Verificar archivos transferidos
+```bash
+# Verificar que el archivo llegó correctamente
+ssh usuario@servidor-websphere "ls -lh /tmp/appdynamics-java-agent-*.zip"
+
+# Verificar integridad (comparar checksums)
+# En máquina local
+md5sum appdynamics-java-agent-*.zip
+# En servidor
+ssh usuario@servidor-websphere "md5sum /tmp/appdynamics-java-agent-*.zip"
+```
+
 ## Verificación de Instalación
 
 ### Verificar que el agente está cargado
