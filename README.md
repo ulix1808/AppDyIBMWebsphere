@@ -324,6 +324,46 @@ Todos usan el mismo `controller-info.xml` base, pero cada uno se identifica corr
 
 **Nota:** Las propiedades del sistema (`-Dappdynamics.*`) también sobrescriben `controller-info.xml`. Para usar el mismo agente en múltiples servidores, configure solo las propiedades que varían por servidor (principalmente `nodeName` y `tierName`).
 
+#### Paso 3: Reiniciar el Servidor WebSphere
+
+**⚠️ IMPORTANTE:** Después de configurar las variables de entorno y los JVM arguments, es **necesario reiniciar el servidor WebSphere** para que los cambios surtan efecto.
+
+**Razones:**
+- Las variables de entorno configuradas en la consola administrativa solo se aplican cuando el servidor inicia
+- Los JVM arguments (incluyendo `-javaagent`) solo se leen cuando la JVM se inicia
+- El agente de AppDynamics se carga al inicio de la JVM mediante la opción `-javaagent`
+
+**Procedimiento de reinicio:**
+
+1. **Guardar la configuración:**
+   - Haga clic en **Aplicar** o **Guardar** en la consola administrativa
+   - Verifique que los cambios se guardaron correctamente
+
+2. **Detener el servidor:**
+   - En la consola administrativa: **Servidores** > **Application Servers** > **[nombre-del-servidor]**
+   - Haga clic en **Detener** (Stop)
+   - Espere a que el servidor se detenga completamente
+
+3. **Iniciar el servidor:**
+   - Haga clic en **Iniciar** (Start)
+   - Espere a que el servidor inicie completamente
+
+4. **Verificar que el agente se cargó:**
+   - Revise los logs del servidor para confirmar que el agente de AppDynamics se cargó correctamente
+   - Vea la sección [Verificación de la Instrumentación](#verificación-de-la-instrumentación) para más detalles
+
+**Alternativa mediante línea de comandos:**
+
+```bash
+# Detener el servidor
+$WAS_HOME/bin/stopServer.sh server1 -username admin -password password
+
+# Iniciar el servidor
+$WAS_HOME/bin/startServer.sh server1
+```
+
+**Nota:** Si el servidor está en un entorno de producción, coordine el reinicio durante una ventana de mantenimiento.
+
 ### Opción 2: Configuración mediante Script de Inicio
 
 #### Crear Script de Inicio Personalizado
