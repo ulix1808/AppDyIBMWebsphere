@@ -570,38 +570,66 @@ MIIDrzCCApegAwIBAgIQBzY7vYkXlF9c1l4dRZ5KpzANBgkqhkiG9w0BAQsFADBh
 
 #### 4.3: Importar Certificados en WebSphere Application Server
 
-IBM WebSphere usa su propio keystore. Importar los certificados usando la consola administrativa:
+**⚠️ IMPORTANTE:** WebSphere Application Server usa su propio sistema de keystores, **diferente del keystore estándar de Java** (`cacerts`). 
 
-**Método 1: Usando la Interfaz de WebSphere (Recomendado)**
+**Diferencia clave:**
+- **WebSphere:** Usa keystores propios (`.p12`) gestionados por la consola administrativa
+- **Java estándar:** Usa `cacerts` en `$JAVA_HOME/jre/lib/security/cacerts`
 
-1. Acceder a la consola administrativa de WebSphere
-2. Navegar a: **Security > SSL certificate and key management > Key stores and certificates**
-3. Seleccionar el keystore apropiado:
-   - `NodeDefaultKeyStore` o
-   - `NodeDefaultTrustStore` (recomendado para certificados de confianza)
-4. Hacer clic en **Signer certificates**
-5. Hacer clic en **Add**
-6. Para cada certificado:
-   - **Alias:** 
-     - `digicert-global-root-g2` (para Root CA)
-     - `digicert-g2-ca1` (para Intermediate CA)
+**Escenario 1: WebSphere (Recomendado)**
+Si estás usando WebSphere Application Server, debes importar los certificados en el keystore de WebSphere usando la interfaz administrativa.
+
+**Escenario 2: Java Estándar**
+Si estás usando Java directamente (sin WebSphere) o si WebSphere está configurado para usar el keystore de Java, puedes usar keytool con `cacerts`.
+
+Hay tres métodos disponibles:
+
+**Método 1: Usando la Interfaz Administrativa de WebSphere (Recomendado para WebSphere)**
+
+**⚠️ Este es el método que debes usar cuando trabajas con WebSphere Application Server.** 
+
+WebSphere tiene su propio sistema de keystores diferente del keystore estándar de Java. Este método es el correcto para WebSphere.
+
+1. **Acceder a la consola administrativa de WebSphere**
+   - URL: `https://<servidor>:9043/ibm/console` (o el puerto administrativo configurado)
+
+2. **Navegar a la gestión de certificados:**
+   - **Security > SSL certificate and key management > Key stores and certificates**
+
+3. **Seleccionar el keystore apropiado:**
+   - `NodeDefaultTrustStore` (recomendado para certificados de confianza/CA)
+   - O `NodeDefaultKeyStore` (si es necesario)
+
+4. **Importar Root CA:**
+   - Hacer clic en **Signer certificates**
+   - Hacer clic en **Add**
+   - **Alias:** `digicert-global-root-g2`
    - **Data type:** `Base64-encoded ASCII data`
-   - **File:** Seleccionar el archivo `.pem` correspondiente
+   - **File:** Seleccionar el archivo `digicert-global-root-g2.pem`
    - Hacer clic en **OK**
 
-**Importar Root CA:**
-- Alias: `digicert-global-root-g2`
-- Data type: `Base64-encoded`
-- File: `digicert-global-root-g2.pem`
+5. **Importar Intermediate CA:**
+   - Hacer clic en **Add** nuevamente
+   - **Alias:** `digicert-g2-ca1`
+   - **Data type:** `Base64-encoded ASCII data`
+   - **File:** Seleccionar el archivo `digicert-g2-ca1.pem`
+   - Hacer clic en **OK**
 
-**Importar Intermediate CA:**
-- Alias: `digicert-g2-ca1`
-- Data type: `Base64-encoded`
-- File: `digicert-g2-ca1.pem`
+6. **Guardar la configuración:**
+   - Hacer clic en **Save** en la parte superior de la consola
+   - Sincronizar los cambios con los nodos si es un entorno de clúster
 
-**Método 2: Usando línea de comandos (keytool)**
+**Ventajas de este método:**
+- WebSphere gestiona automáticamente los keystores
+- No necesitas conocer la contraseña del keystore
+- Los cambios se sincronizan correctamente en entornos de clúster
+- Es el método oficial recomendado por IBM
 
-Si prefieres usar `keytool` directamente:
+**Método 2: Usando keytool directamente (Método tradicional de Java)**
+
+Este método funciona pero requiere conocer la ubicación y contraseña del keystore de WebSphere. Úsalo solo si no puedes acceder a la consola administrativa.
+
+**⚠️ NOTA:** WebSphere usa keystores en formato PKCS12 (`.p12`), no el formato JKS estándar.
 
 ```bash
 # Importar certificado raíz
@@ -609,6 +637,7 @@ keytool -import -trustcacerts \
   -alias digicert-global-root-g2 \
   -file digicert-global-root-g2.pem \
   -keystore <WAS_KEYSTORE_PATH> \
+  -storetype PKCS12 \
   -storepass <KEYSTORE_PASSWORD>
 
 # Importar certificado intermedio
@@ -616,12 +645,53 @@ keytool -import -trustcacerts \
   -alias digicert-g2-ca1 \
   -file digicert-g2-ca1.pem \
   -keystore <WAS_KEYSTORE_PATH> \
+  -storetype PKCS12 \
   -storepass <KEYSTORE_PASSWORD>
 ```
 
 **Ubicación del keystore de WebSphere:**
 - Normalmente: `<WAS_HOME>/profiles/<PROFILE_NAME>/etc/NodeDefaultTrustStore.p12`
-- O verificar en: **Security > SSL certificate and key management > Key stores and certificates**
+- O verificar en: **Security > SSL certificate and key management > Key stores and certificates > [keystore] > Additional Properties > General Properties**
+
+**Obtener la contraseña del keystore:**
+- La contraseña puede estar en: `<WAS_HOME>/profiles/<PROFILE_NAME>/etc/security.xml`
+- O configurada durante la instalación de WebSphere
+- **⚠️ IMPORTANTE:** Si modificas el keystore directamente con keytool, asegúrate de que WebSphere pueda acceder a él después
+
+**Método 3: Importar al Keystore Estándar de Java (Para Java estándar, NO WebSphere)**
+
+**⚠️ Este método es para aplicaciones Java estándar que NO usan WebSphere.**
+
+Si estás usando Java directamente (sin WebSphere) o si tienes una aplicación Java que usa el keystore estándar, puedes importar directamente al `cacerts`:
+
+**NOTA:** Si estás usando WebSphere, **NO uses este método**. WebSphere tiene sus propios keystores y debes usar el Método 1 (interfaz administrativa).
+
+```bash
+# Para Java 8
+keytool -import -trustcacerts \
+  -alias digicert-global-root-g2 \
+  -file digicert-global-root-g2.pem \
+  -keystore $JAVA_HOME/jre/lib/security/cacerts \
+  -storepass changeit
+
+keytool -import -trustcacerts \
+  -alias digicert-g2-ca1 \
+  -file digicert-g2-ca1.pem \
+  -keystore $JAVA_HOME/jre/lib/security/cacerts \
+  -storepass changeit
+
+# Para Java 11+
+keytool -import -trustcacerts \
+  -alias digicert-global-root-g2 \
+  -file digicert-global-root-g2.pem \
+  -keystore $JAVA_HOME/lib/security/cacerts \
+  -storepass changeit
+```
+
+**⚠️ IMPORTANTE:** 
+- Este método solo funciona si WebSphere está configurado para usar el keystore de Java
+- La mayoría de las instalaciones de WebSphere usan sus propios keystores
+- **Recomendación:** Usar el Método 1 (interfaz administrativa) para WebSphere
 
 #### 4.4: Verificar Certificados Importados
 
