@@ -506,24 +506,192 @@ Si el servidor WebSphere está detrás de un proxy, configure las propiedades de
 
 ### 4. Certificados SSL/TLS
 
-Si el Controller usa HTTPS, puede ser necesario:
+Si el Controller usa HTTPS (puerto 443 para SaaS o 8181 para On-Premise), es necesario importar los certificados SSL en el keystore de WebSphere.
 
-#### Importar Certificados en el Keystore de Java
+#### 4.1: Obtener los Certificados del Controller
 
+Usar `openssl` para obtener la cadena completa de certificados:
+
+**Para Controller SaaS (puerto 443):**
 ```bash
-# Obtener el certificado del Controller
-openssl s_client -connect controller.example.com:8181 -showcerts </dev/null 2>/dev/null | openssl x509 -outform PEM > controller.crt
-
-# Importar al keystore de Java
-keytool -import -alias appdynamics-controller -file controller.crt -keystore $JAVA_HOME/jre/lib/security/cacerts -storepass changeit
+openssl s_client \
+  -connect <controller-host>:443 \
+  -showcerts </dev/null
 ```
 
-#### O deshabilitar verificación SSL (solo para desarrollo/testing):
+**Ejemplo:**
+```bash
+openssl s_client \
+  -connect lombardi20260122032394.saas.appdynamics.com:443 \
+  -showcerts </dev/null
+```
+
+**Para Controller On-Premise (puerto 8181):**
+```bash
+openssl s_client \
+  -connect controller.example.com:8181 \
+  -showcerts </dev/null
+```
+
+**Salida esperada:**
+- Certificado del servidor (certificado 0)
+- Certificado intermedio (certificado 1) - muestra `depth=1`
+- Información sobre el certificado raíz
+
+#### 4.2: Extraer los Certificados
+
+De la salida de `openssl`, extraer y guardar los certificados:
+
+1. **Certificado Intermedio (Intermediate CA):**
+   - Buscar el certificado que muestra `depth=1` en la salida
+   - Copiar desde `-----BEGIN CERTIFICATE-----` hasta `-----END CERTIFICATE-----`
+   - Guardar como `digicert-g2-ca1.pem`
+
+2. **Certificado Raíz (Root CA):**
+   - Buscar el certificado raíz (normalmente el último en la cadena)
+   - Copiar desde `-----BEGIN CERTIFICATE-----` hasta `-----END CERTIFICATE-----`
+   - Guardar como `digicert-global-root-g2.pem`
+
+**Ejemplo de certificado intermedio:**
+```pem
+-----BEGIN CERTIFICATE-----
+MIIEyDCCA7CgAwIBAgIQDPW9BitWAvR6uFAsI8zwZjANBgkqhkiG9w0BAQsFADBh
+...
+-----END CERTIFICATE-----
+```
+
+**Ejemplo de certificado raíz:**
+```pem
+-----BEGIN CERTIFICATE-----
+MIIDrzCCApegAwIBAgIQBzY7vYkXlF9c1l4dRZ5KpzANBgkqhkiG9w0BAQsFADBh
+...
+-----END CERTIFICATE-----
+```
+
+#### 4.3: Importar Certificados en WebSphere Application Server
+
+IBM WebSphere usa su propio keystore. Importar los certificados usando la consola administrativa:
+
+**Método 1: Usando la Interfaz de WebSphere (Recomendado)**
+
+1. Acceder a la consola administrativa de WebSphere
+2. Navegar a: **Security > SSL certificate and key management > Key stores and certificates**
+3. Seleccionar el keystore apropiado:
+   - `NodeDefaultKeyStore` o
+   - `NodeDefaultTrustStore` (recomendado para certificados de confianza)
+4. Hacer clic en **Signer certificates**
+5. Hacer clic en **Add**
+6. Para cada certificado:
+   - **Alias:** 
+     - `digicert-global-root-g2` (para Root CA)
+     - `digicert-g2-ca1` (para Intermediate CA)
+   - **Data type:** `Base64-encoded ASCII data`
+   - **File:** Seleccionar el archivo `.pem` correspondiente
+   - Hacer clic en **OK**
+
+**Importar Root CA:**
+- Alias: `digicert-global-root-g2`
+- Data type: `Base64-encoded`
+- File: `digicert-global-root-g2.pem`
+
+**Importar Intermediate CA:**
+- Alias: `digicert-g2-ca1`
+- Data type: `Base64-encoded`
+- File: `digicert-g2-ca1.pem`
+
+**Método 2: Usando línea de comandos (keytool)**
+
+Si prefieres usar `keytool` directamente:
+
+```bash
+# Importar certificado raíz
+keytool -import -trustcacerts \
+  -alias digicert-global-root-g2 \
+  -file digicert-global-root-g2.pem \
+  -keystore <WAS_KEYSTORE_PATH> \
+  -storepass <KEYSTORE_PASSWORD>
+
+# Importar certificado intermedio
+keytool -import -trustcacerts \
+  -alias digicert-g2-ca1 \
+  -file digicert-g2-ca1.pem \
+  -keystore <WAS_KEYSTORE_PATH> \
+  -storepass <KEYSTORE_PASSWORD>
+```
+
+**Ubicación del keystore de WebSphere:**
+- Normalmente: `<WAS_HOME>/profiles/<PROFILE_NAME>/etc/NodeDefaultTrustStore.p12`
+- O verificar en: **Security > SSL certificate and key management > Key stores and certificates**
+
+#### 4.4: Verificar Certificados Importados
+
+**Desde la consola de WebSphere:**
+1. Navegar a: **Security > SSL certificate and key management > Key stores and certificates**
+2. Seleccionar el keystore
+3. Hacer clic en **Signer certificates**
+4. Verificar que aparecen:
+   - `digicert-global-root-g2`
+   - `digicert-g2-ca1`
+
+**Desde línea de comandos:**
+```bash
+# Verificar certificados en el keystore
+keytool -list -v -keystore <WAS_KEYSTORE_PATH> -storepass <PASSWORD> | grep -i digicert
+```
+
+#### 4.5: Configurar controller-info.xml para SSL
+
+Asegurar que `controller-info.xml` tiene SSL habilitado:
+
+```xml
+<controller-ssl-enabled>true</controller-ssl-enabled>
+<controller-port>443</controller-port>  <!-- SaaS: 443 | On-Premise: 8181 -->
+```
+
+**Opcional:** Si necesitas especificar un archivo de certificado personalizado:
+
+```xml
+<controller-cert-file>/ruta/al/certificado.pem</controller-cert-file>
+```
+
+O un directorio de certificados:
+
+```xml
+<controller-cert-dir>/ruta/al/directorio/certificados</controller-cert-dir>
+```
+
+#### 4.6: Reiniciar WebSphere
+
+**⚠️ IMPORTANTE:** Después de importar certificados, es necesario reiniciar el servidor WebSphere para que los cambios surtan efecto.
+
+#### 4.7: Verificar Conectividad SSL
+
+```bash
+# Verificar conectividad SSL
+openssl s_client -connect <controller-host>:443 -showcerts </dev/null
+
+# Verificar que no hay errores de certificado
+# Debe mostrar "Verify return code: 0 (ok)" al final
+```
+
+**⚠️ IMPORTANTE:**
+- Los certificados deben estar en el keystore de confianza (truststore) de WebSphere
+- Reiniciar el servidor WebSphere después de importar certificados
+- Verificar que los certificados no han expirado
+- Para producción, siempre usar certificados válidos y no deshabilitar verificación SSL
+
+#### Alternativa: Deshabilitar Verificación SSL (Solo para Desarrollo/Testing)
+
+**⚠️ NO RECOMENDADO PARA PRODUCCIÓN**
+
+Si solo necesitas probar en desarrollo, puedes deshabilitar temporalmente la verificación SSL:
 
 ```xml
 <controller-ssl-enabled>true</controller-ssl-enabled>
 <controller-ssl-verify-cert>false</controller-ssl-verify-cert>
 ```
+
+**Nota:** Esto desactiva la verificación de certificados y no es seguro para entornos de producción.
 
 ### 5. Resolución DNS
 
