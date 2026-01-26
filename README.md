@@ -936,14 +936,50 @@ grep -i "connected\|registered" /opt/appdynamics/java-agent/logs/agent.log
 **Síntomas:**
 - Errores de certificado SSL
 - Conexión rechazada cuando SSL está habilitado
+- Mensajes como "unable to get local issuer certificate" o "SSL handshake failed"
 
-**Soluciones:**
-1. Importar certificados al keystore de Java (ver sección de Certificados SSL/TLS)
+**Soluciones según el escenario:**
 
-2. O deshabilitar verificación SSL (solo para desarrollo):
-   ```xml
-   <controller-ssl-verify-cert>false</controller-ssl-verify-cert>
+#### Escenario 1: WebSphere Application Server
+
+1. **Importar certificados en el keystore de WebSphere:**
+   - Usar la interfaz administrativa de WebSphere (ver sección 4.3 - Método 1)
+   - **NO usar** el keystore estándar de Java (`cacerts`) directamente
+   - WebSphere tiene sus propios keystores que deben gestionarse desde la consola
+   - Navegar a: **Security > SSL certificate and key management > Key stores and certificates**
+
+2. **Verificar que los certificados están importados:**
+   - Desde la consola: **Security > SSL certificate and key management > Key stores and certificates > [keystore] > Signer certificates**
+   - Deben aparecer: `digicert-global-root-g2` y `digicert-g2-ca1`
+
+3. **Reiniciar WebSphere después de importar certificados:**
+   - Los cambios en el keystore requieren reinicio del servidor
+
+#### Escenario 2: Java Estándar (sin WebSphere)
+
+1. **Importar certificados al keystore de Java (`cacerts`):**
+   - Usar keytool con el keystore estándar (ver sección 4.3 - Método 3)
+   - Solo si NO estás usando WebSphere
+
+2. **Verificar certificados importados:**
+   ```bash
+   keytool -list -keystore $JAVA_HOME/jre/lib/security/cacerts -storepass changeit | grep digicert
    ```
+
+3. **Reiniciar la aplicación Java después de importar certificados**
+
+#### Solución Temporal (Solo para Desarrollo/Testing)
+
+**⚠️ NO RECOMENDADO PARA PRODUCCIÓN**
+
+Deshabilitar verificación SSL temporalmente:
+
+```xml
+<controller-ssl-enabled>true</controller-ssl-enabled>
+<controller-ssl-verify-cert>false</controller-ssl-verify-cert>
+```
+
+**Importante:** Esto desactiva la verificación de certificados y no es seguro para entornos de producción.
 
 ### Problema: El agente causa problemas de rendimiento
 
