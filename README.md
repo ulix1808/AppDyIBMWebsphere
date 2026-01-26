@@ -538,19 +538,52 @@ openssl s_client \
 - Certificado intermedio (certificado 1) - muestra `depth=1`
 - Información sobre el certificado raíz
 
-#### 4.2: Extraer los Certificados
+#### 4.2: Obtener los Certificados
 
-De la salida de `openssl`, extraer y guardar los certificados:
+Hay dos métodos para obtener los certificados:
+
+**Método A: Descargar desde URLs oficiales de DigiCert (Recomendado - Evita errores de formato)**
+
+Este método es el más confiable y evita problemas de formato que pueden causar errores en WebSphere:
+
+```bash
+# Descargar certificado raíz (Root CA)
+curl -o digicert-global-root-g2.crt \
+  https://cacerts.digicert.com/DigiCertGlobalRootG2.crt
+
+# Descargar certificado intermedio (Intermediate CA)
+curl -o digicert-g2-ca1.crt \
+  https://cacerts.digicert.com/DigiCertGlobalG2TLSRSASHA2562020CA1.crt
+```
+
+**Ventajas de este método:**
+- Los archivos vienen en formato correcto, sin corrupción
+- Evita errores como "Last unit does not have enough valid bits"
+- No hay problemas de encoding o caracteres extra
+- WebSphere puede leerlos directamente
+
+**Método B: Extraer de la salida de openssl (Alternativa)**
+
+Si no puedes descargar desde las URLs oficiales, puedes extraer de la salida de `openssl`:
 
 1. **Certificado Intermedio (Intermediate CA):**
    - Buscar el certificado que muestra `depth=1` en la salida
    - Copiar desde `-----BEGIN CERTIFICATE-----` hasta `-----END CERTIFICATE-----`
    - Guardar como `digicert-g2-ca1.pem`
+   - **⚠️ IMPORTANTE:** Copiar exactamente, sin espacios extra ni líneas cortadas
 
 2. **Certificado Raíz (Root CA):**
    - Buscar el certificado raíz (normalmente el último en la cadena)
    - Copiar desde `-----BEGIN CERTIFICATE-----` hasta `-----END CERTIFICATE-----`
    - Guardar como `digicert-global-root-g2.pem`
+   - **⚠️ IMPORTANTE:** Copiar exactamente, sin espacios extra ni líneas cortadas
+
+**⚠️ ADVERTENCIA:** Si extraes manualmente de `openssl`, asegúrate de:
+- No agregar espacios o tabs
+- No cortar líneas
+- No agregar texto antes o después del certificado
+- Guardar en formato UTF-8
+- Verificar el archivo antes de importar (ver paso 4.2.1)
 
 **Ejemplo de certificado intermedio:**
 ```pem
@@ -567,6 +600,28 @@ MIIDrzCCApegAwIBAgIQBzY7vYkXlF9c1l4dRZ5KpzANBgkqhkiG9w0BAQsFADBh
 ...
 -----END CERTIFICATE-----
 ```
+
+#### 4.2.1: Verificar que los Certificados son Válidos
+
+**⚠️ CRÍTICO:** Antes de importar en WebSphere, SIEMPRE verifica que los certificados son válidos:
+
+```bash
+# Verificar certificado raíz
+openssl x509 -in digicert-global-root-g2.crt -noout -text
+
+# Verificar certificado intermedio
+openssl x509 -in digicert-g2-ca1.crt -noout -text
+```
+
+**Resultado esperado:**
+- Debe mostrar información del certificado (subject, issuer, dates, etc.)
+- NO debe mostrar errores
+- Si falla → **NO continúes**, el archivo está corrupto o en formato incorrecto
+
+**Si el archivo es inválido:**
+- Elimínalo: `rm -f digicert-global-root-g2.crt`
+- Descárgalo nuevamente usando el Método A (URLs oficiales)
+- Verifica nuevamente antes de importar
 
 #### 4.3: Importar Certificados en WebSphere Application Server
 
@@ -617,7 +672,9 @@ WebSphere tiene su propio sistema de keystores diferente del keystore estándar 
 
 6. **Guardar la configuración:**
    - Hacer clic en **Save** en la parte superior de la consola
-   - Sincronizar los cambios con los nodos si es un entorno de clúster
+   - Sincronizar los cambios con los nodos si es un entorno de clúster:
+     - **System administration > Nodes > [nombre-del-nodo] > Full Resynchronize**
+     - O desde línea de comandos: `syncNode.sh <node_name>`
 
 **Ventajas de este método:**
 - WebSphere gestiona automáticamente los keystores
@@ -736,13 +793,39 @@ O un directorio de certificados:
 
 #### 4.7: Verificar Conectividad SSL
 
+**Paso 1: Verificar desde el servidor**
+
 ```bash
 # Verificar conectividad SSL
-openssl s_client -connect <controller-host>:443 -showcerts </dev/null
-
-# Verificar que no hay errores de certificado
-# Debe mostrar "Verify return code: 0 (ok)" al final
+openssl s_client \
+  -connect <controller-host>:443 \
+  </dev/null
 ```
+
+**Resultado esperado:**
+- Debe terminar con: `Verify return code: 0 (ok)`
+- NO debe mostrar errores de certificado
+- Debe mostrar la cadena de certificados completa
+
+**Ejemplo:**
+```bash
+openssl s_client \
+  -connect lombardi20260122032394.saas.appdynamics.com:443 \
+  </dev/null
+```
+
+**Paso 2: Verificar en logs de AppDynamics**
+
+Después de reiniciar, verificar en los logs del agente:
+
+```bash
+tail -f /opt/appdynamics/java-agent/logs/agent.log
+```
+
+**Mensajes esperados:**
+- `Connected to controller`
+- `Fetching application configuration`
+- NO debe haber errores de SSL o certificados
 
 **⚠️ IMPORTANTE:**
 - Los certificados deben estar en el keystore de confianza (truststore) de WebSphere
@@ -938,6 +1021,117 @@ grep -i "connected\|registered" /opt/appdynamics/java-agent/logs/agent.log
 - Conexión rechazada cuando SSL está habilitado
 - Mensajes como "unable to get local issuer certificate" o "SSL handshake failed"
 
+#### Error Específico: "Last unit does not have enough valid bits"
+
+**Error completo:**
+```
+java.io.IOException: 
+java.lang.IllegalArgumentException: 
+Last unit does not have enough valid bits
+```
+
+**Causa:**
+El archivo `.pem` o `.crt` **NO está en formato Base64 válido**. WebSphere es muy estricto con el formato PEM.
+
+**Problemas comunes que causan este error:**
+- Caracteres extra (espacios, tabs) en el archivo
+- Líneas cortadas o incompletas
+- Texto antes o después del certificado
+- Se copió solo una parte del certificado
+- Se copió un certificado incorrecto o corrupto
+- Encoding incorrecto (UTF-16, CRLF raro, etc.)
+
+**✅ Solución Correcta:**
+
+**Paso 1: Eliminar el archivo corrupto**
+```bash
+rm -f /ruta/del/archivo/digicert-global-root-g2.pem
+rm -f /ruta/del/archivo/digicert-g2-ca1.pem
+```
+
+**Paso 2: Descargar los certificados desde URLs oficiales (Recomendado)**
+
+Este método evita problemas de formato porque los archivos vienen perfectos:
+
+```bash
+# Descargar certificado raíz (Root CA)
+curl -o digicert-global-root-g2.crt \
+  https://cacerts.digicert.com/DigiCertGlobalRootG2.crt
+
+# Descargar certificado intermedio (Intermediate CA)
+curl -o digicert-g2-ca1.crt \
+  https://cacerts.digicert.com/DigiCertGlobalG2TLSRSASHA2562020CA1.crt
+```
+
+**Paso 3: Verificar que los archivos son válidos**
+
+```bash
+# Verificar certificado raíz
+openssl x509 -in digicert-global-root-g2.crt -noout -text
+
+# Verificar certificado intermedio
+openssl x509 -in digicert-g2-ca1.crt -noout -text
+```
+
+**Resultado esperado:**
+- Debe mostrar información del certificado (subject, issuer, dates, etc.)
+- NO debe mostrar errores
+- Si falla → El archivo aún está corrupto, descargar nuevamente
+
+**Paso 4: Importar en WebSphere (ahora SÍ funcionará)**
+
+En la consola WAS:
+1. **Security > SSL certificate and key management > Key stores and certificates**
+2. Seleccionar `NodeDefaultTrustStore`
+3. **Signer certificates > Add**
+
+**Para Root CA:**
+- Alias: `digicert-global-root-g2`
+- File name: `/ruta/completa/digicert-global-root-g2.crt`
+- Data type: `Base64-encoded ASCII data`
+- Hacer clic en **OK**
+
+**Para Intermediate CA:**
+- Alias: `digicert-g2-ca1`
+- File name: `/ruta/completa/digicert-g2-ca1.crt`
+- Data type: `Base64-encoded ASCII data`
+- Hacer clic en **OK**
+
+**Paso 5: Sincronizar y reiniciar**
+
+1. **Sincronizar nodos:**
+   - **System administration > Nodes > [nombre-del-nodo] > Full Resynchronize**
+
+2. **Reiniciar componentes:**
+   - NodeAgent: **System administration > Node Agents > [nombre] > Stop**, luego **Start**
+   - Application Server: **Servers > Application Servers > [nombre] > Stop**, luego **Start**
+
+**Paso 6: Validación final**
+
+```bash
+# Verificar conectividad SSL
+openssl s_client \
+  -connect lombardi20260122032394.saas.appdynamics.com:443 \
+  </dev/null
+```
+
+**Debe terminar con:**
+```
+Verify return code: 0 (ok)
+```
+
+**En logs de AppDynamics:**
+```bash
+tail -f /opt/appdynamics/java-agent/logs/agent.log
+```
+
+**Mensajes esperados:**
+- `Connected to controller`
+- `Fetching application configuration`
+- NO debe haber errores de SSL o certificados
+
+**Soluciones según el escenario:**
+
 **Soluciones según el escenario:**
 
 #### Escenario 1: WebSphere Application Server
@@ -974,10 +1168,10 @@ grep -i "connected\|registered" /opt/appdynamics/java-agent/logs/agent.log
 
 Deshabilitar verificación SSL temporalmente:
 
-```xml
+   ```xml
 <controller-ssl-enabled>true</controller-ssl-enabled>
-<controller-ssl-verify-cert>false</controller-ssl-verify-cert>
-```
+   <controller-ssl-verify-cert>false</controller-ssl-verify-cert>
+   ```
 
 **Importante:** Esto desactiva la verificación de certificados y no es seguro para entornos de producción.
 
