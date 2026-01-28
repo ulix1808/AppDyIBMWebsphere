@@ -645,15 +645,42 @@ Hay tres métodos disponibles:
 
 WebSphere tiene su propio sistema de keystores diferente del keystore estándar de Java. Este método es el correcto para WebSphere.
 
+#### Paso Previo: Identificar el Trust Store Activo
+
+**⚠️ IMPORTANTE:** Antes de importar certificados, es necesario identificar cuál de todos los posibles trust stores es el activo en tu configuración de WebSphere.
+
+1. **Entrar a la consola administrativa de WebSphere**
+   - URL: `https://<servidor>:9043/ibm/console` (o el puerto administrativo configurado)
+
+2. **Navegar a la gestión de certificados:**
+   - **Security → SSL certificate and key management**
+
+3. **Ver los trust stores disponibles:**
+   - **Key stores and certificates**
+   - Aquí verás todos los keystores disponibles (por ejemplo: `CellDefaultTrustStore`, `NodeDefaultTrustStore`, etc.)
+
+4. **Identificar el trust store activo:**
+   - Navegar a: **SSL configurations → NodeDefaultSSLSettings → Trust store**
+   - O verificar en: **SSL configurations → [nombre-de-tu-configuracion-SSL] → Trust store**
+   - El trust store que aparece aquí es el **activo** que se está usando
+
+**Trust stores comunes:**
+- `CellDefaultTrustStore` - Trust store a nivel de celda (compartido por todos los nodos de la celda)
+- `NodeDefaultTrustStore` - Trust store a nivel de nodo (específico del nodo)
+
+**Nota:** Normalmente el trust store activo será `CellDefaultTrustStore` o `NodeDefaultTrustStore`. Confirma cuál es el activo en tu configuración SSL antes de importar los certificados.
+
+#### Procedimiento de Importación
+
 1. **Acceder a la consola administrativa de WebSphere**
    - URL: `https://<servidor>:9043/ibm/console` (o el puerto administrativo configurado)
 
 2. **Navegar a la gestión de certificados:**
    - **Security > SSL certificate and key management > Key stores and certificates**
 
-3. **Seleccionar el keystore apropiado:**
-   - `NodeDefaultTrustStore` (recomendado para certificados de confianza/CA)
-   - O `NodeDefaultKeyStore` (si es necesario)
+3. **Seleccionar el trust store activo identificado:**
+   - Abrir el trust store activo (normalmente `CellDefaultTrustStore` o `NodeDefaultTrustStore`)
+   - **⚠️ IMPORTANTE:** Debes importar los certificados en el mismo trust store que identificaste como activo en el paso previo
 
 4. **Importar Root CA:**
    - Hacer clic en **Signer certificates**
@@ -1082,8 +1109,12 @@ openssl x509 -in digicert-g2-ca1.crt -noout -text
 
 En la consola WAS:
 1. **Security > SSL certificate and key management > Key stores and certificates**
-2. Seleccionar `NodeDefaultTrustStore`
-3. **Signer certificates > Add**
+2. **Identificar el trust store activo:**
+   - Navegar a: **SSL configurations → NodeDefaultSSLSettings → Trust store**
+   - O verificar en: **SSL configurations → [nombre-de-tu-configuracion-SSL] → Trust store**
+   - El trust store que aparece aquí es el **activo** (normalmente `CellDefaultTrustStore` o `NodeDefaultTrustStore`)
+3. Seleccionar el trust store activo identificado
+4. **Signer certificates > Add**
 
 **Para Root CA:**
 - Alias: `digicert-global-root-g2`
