@@ -742,40 +742,137 @@ keytool -import -trustcacerts \
 - O configurada durante la instalación de WebSphere
 - **⚠️ IMPORTANTE:** Si modificas el keystore directamente con keytool, asegúrate de que WebSphere pueda acceder a él después
 
-**Método 3: Importar al Keystore Estándar de Java (Para Java estándar, NO WebSphere)**
+**Método 3: Importar al Keystore Estándar de Java usando OpenSSL y keytool (Para Java estándar, NO WebSphere)**
 
-**⚠️ Este método es para aplicaciones Java estándar que NO usan WebSphere.**
+**⚠️ Este método es SOLO para aplicaciones Java estándar que NO usan WebSphere.**
 
-Si estás usando Java directamente (sin WebSphere) o si tienes una aplicación Java que usa el keystore estándar, puedes importar directamente al `cacerts`:
+**Cuándo usar este método:**
+- Aplicaciones Java que se ejecutan directamente (sin WebSphere)
+- Aplicaciones que usan el keystore estándar de Java (`cacerts`)
+- Entornos donde Java gestiona directamente los certificados SSL
 
-**NOTA:** Si estás usando WebSphere, **NO uses este método**. WebSphere tiene sus propios keystores y debes usar el Método 1 (interfaz administrativa).
+**⚠️ IMPORTANTE:** Si estás usando WebSphere, **NO uses este método**. WebSphere tiene sus propios keystores y debes usar el Método 1 (interfaz administrativa).
+
+#### Ejemplo Completo: Obtener e Importar Certificados con OpenSSL y keytool
+
+**Paso 1: Obtener los certificados usando OpenSSL**
+
+**Para Controller SaaS (puerto 443):**
+```bash
+# Obtener la cadena completa de certificados
+openssl s_client \
+  -connect <controller-host>:443 \
+  -showcerts </dev/null 2>/dev/null | \
+  openssl x509 -outform PEM > controller-chain.pem
+
+# Ejemplo específico:
+openssl s_client \
+  -connect lombardi20260122032394.saas.appdynamics.com:443 \
+  -showcerts </dev/null 2>/dev/null | \
+  openssl x509 -outform PEM > controller-chain.pem
+```
+
+**Para Controller On-Premise (puerto 8181):**
+```bash
+openssl s_client \
+  -connect controller.example.com:8181 \
+  -showcerts </dev/null 2>/dev/null | \
+  openssl x509 -outform PEM > controller-chain.pem
+```
+
+**Alternativa: Descargar desde URLs oficiales (Recomendado):**
+```bash
+# Descargar certificado raíz (Root CA)
+curl -o digicert-global-root-g2.crt \
+  https://cacerts.digicert.com/DigiCertGlobalRootG2.crt
+
+# Descargar certificado intermedio (Intermediate CA)
+curl -o digicert-g2-ca1.crt \
+  https://cacerts.digicert.com/DigiCertGlobalG2TLSRSASHA2562020CA1.crt
+```
+
+**Paso 2: Verificar que los certificados son válidos**
+
+```bash
+# Verificar certificado raíz
+openssl x509 -in digicert-global-root-g2.crt -noout -text
+
+# Verificar certificado intermedio
+openssl x509 -in digicert-g2-ca1.crt -noout -text
+```
+
+**Paso 3: Importar certificados al keystore de Java usando keytool**
+
+**Para Java 8:**
+```bash
+# Importar certificado raíz (Root CA)
+keytool -import -trustcacerts \
+  -alias digicert-global-root-g2 \
+  -file digicert-global-root-g2.crt \
+  -keystore $JAVA_HOME/jre/lib/security/cacerts \
+  -storepass changeit \
+  -noprompt
+
+# Importar certificado intermedio (Intermediate CA)
+keytool -import -trustcacerts \
+  -alias digicert-g2-ca1 \
+  -file digicert-g2-ca1.crt \
+  -keystore $JAVA_HOME/jre/lib/security/cacerts \
+  -storepass changeit \
+  -noprompt
+```
+
+**Para Java 11+ (ruta diferente):**
+```bash
+# Importar certificado raíz (Root CA)
+keytool -import -trustcacerts \
+  -alias digicert-global-root-g2 \
+  -file digicert-global-root-g2.crt \
+  -keystore $JAVA_HOME/lib/security/cacerts \
+  -storepass changeit \
+  -noprompt
+
+# Importar certificado intermedio (Intermediate CA)
+keytool -import -trustcacerts \
+  -alias digicert-g2-ca1 \
+  -file digicert-g2-ca1.crt \
+  -keystore $JAVA_HOME/lib/security/cacerts \
+  -storepass changeit \
+  -noprompt
+```
+
+**Nota sobre la contraseña:** La contraseña por defecto de `cacerts` es `changeit`. Si fue cambiada, usa la contraseña correcta.
+
+**Paso 4: Verificar que los certificados fueron importados correctamente**
 
 ```bash
 # Para Java 8
-keytool -import -trustcacerts \
-  -alias digicert-global-root-g2 \
-  -file digicert-global-root-g2.pem \
-  -keystore $JAVA_HOME/jre/lib/security/cacerts \
-  -storepass changeit
-
-keytool -import -trustcacerts \
-  -alias digicert-g2-ca1 \
-  -file digicert-g2-ca1.pem \
-  -keystore $JAVA_HOME/jre/lib/security/cacerts \
-  -storepass changeit
+keytool -list -keystore $JAVA_HOME/jre/lib/security/cacerts \
+  -storepass changeit | grep -i digicert
 
 # Para Java 11+
-keytool -import -trustcacerts \
-  -alias digicert-global-root-g2 \
-  -file digicert-global-root-g2.pem \
-  -keystore $JAVA_HOME/lib/security/cacerts \
-  -storepass changeit
+keytool -list -keystore $JAVA_HOME/lib/security/cacerts \
+  -storepass changeit | grep -i digicert
 ```
 
+**Resultado esperado:**
+```
+digicert-global-root-g2, ...
+digicert-g2-ca1, ...
+```
+
+**Paso 5: Reiniciar la aplicación Java**
+
+Después de importar los certificados, reinicia la aplicación Java para que los cambios surtan efecto.
+
+**Ubicaciones del keystore `cacerts` por versión de Java:**
+- **Java 8 y anteriores:** `$JAVA_HOME/jre/lib/security/cacerts`
+- **Java 9 y superiores:** `$JAVA_HOME/lib/security/cacerts`
+
 **⚠️ IMPORTANTE:** 
-- Este método solo funciona si WebSphere está configurado para usar el keystore de Java
-- La mayoría de las instalaciones de WebSphere usan sus propios keystores
-- **Recomendación:** Usar el Método 1 (interfaz administrativa) para WebSphere
+- Este método es **SOLO para aplicaciones Java estándar** que NO usan WebSphere
+- Si estás usando WebSphere, **debes usar el Método 1** (interfaz administrativa de WebSphere)
+- La mayoría de las instalaciones de WebSphere usan sus propios keystores (`.p12`) y NO el `cacerts` de Java
 
 #### 4.4: Verificar Certificados Importados
 
